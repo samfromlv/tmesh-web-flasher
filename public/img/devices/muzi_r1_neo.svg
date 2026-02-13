@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   viewBox="0 0 217.61 761.78589"
+   viewBox="0 0 216.75 487.99176"
    version="1.1"
    id="svg15"
-   sodipodi:docname="buyer benmeshtastic-01 (6).svg"
-   width="217.61"
-   height="761.78589"
+   sodipodi:docname="muzi_r1_neo.svg"
+   width="216.75"
+   height="487.99176"
    inkscape:version="1.4 (e7c3feb1, 2024-10-09)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -20,13 +20,13 @@
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="1.0249904"
-     inkscape:cx="-4.3902849"
-     inkscape:cy="683.42102"
-     inkscape:window-width="1472"
-     inkscape:window-height="890"
+     inkscape:zoom="1.9317526"
+     inkscape:cx="-120.0982"
+     inkscape:cy="225.44295"
+     inkscape:window-width="1728"
+     inkscape:window-height="1056"
      inkscape:window-x="0"
-     inkscape:window-y="38"
+     inkscape:window-y="33"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg15" />
   <defs
@@ -37,7 +37,7 @@
   <g
      id="Layer_3"
      data-name="Layer 3"
-     transform="translate(-407.715,-82.379135)">
+     transform="translate(-408.07515,-355.81308)">
     <path
        class="cls-1"
        d="m 617.2,633.34 v 21.18 a 5.74,5.74 0 0 1 -11.48,0 v -14.38 l -50,26.45 -1,2.9 1,1.54 0.08,137.28 -0.05,2.08 69.19,-13 V 628.81 Z"
@@ -64,20 +64,27 @@
        id="path6" />
     <polygon
        class="cls-5"
-       points="436.48,584 436.48,125.69 454.02,125.58 454.02,584 "
-       id="polygon6" />
+       points="436.48,125.69 454.02,125.58 454.02,584 436.48,584 "
+       id="polygon6"
+       transform="matrix(1,0,0,0.40383084,0,348.16279)" />
     <path
        class="cls-4"
-       d="m 456.2,92.91 c 0,0.12 0,0.23 0,0.35 L 455.05,125 a 0.82,0.82 0 0 1 -0.82,0.78 h -18.14 a 0.81,0.81 0 0 1 -0.81,-0.79 l -1,-31.68 a 9.78,9.78 0 0 1 5.05,-8.88 h 0.08 a 12.08,12.08 0 0 1 11.77,0 9.78,9.78 0 0 1 5.02,8.48 z"
+       d="m 456.15064,365.92873 c 0,0.12 0,0.23 0,0.35 l -1.15,31.74 a 0.82,0.82 0 0 1 -0.82,0.78 h -18.14 a 0.81,0.81 0 0 1 -0.81,-0.79 l -1,-31.68 a 9.78,9.78 0 0 1 5.05,-8.88 h 0.08 a 12.08,12.08 0 0 1 11.77,0 9.78,9.78 0 0 1 5.02,8.48 z"
        id="path7" />
     <polygon
        class="cls-6"
-       points="439.08,657.8 439.08,584 450.16,584 450.16,642.56 "
+       points="450.16,642.56 439.08,657.8 439.08,584 450.16,584 "
        id="polygon7" />
     <path
+       class="cls-9"
+       d="m 454.38378,399.04911 h -18.14 a 0.82,0.82 0 0 1 -0.82,-0.79 l -1,-31.69001 a 9.78,9.78 0 0 1 5,-8.87 h 0.09 a 12.11,12.11 0 0 1 11.77,0 v 0 a 9.81,9.81 0 0 1 5,8.91 l -1.14,31.68001 a 0.82,0.82 0 0 1 -0.76,0.76 z"
+       id="path14"
+       style="display:inline" />
+    <path
        class="cls-6"
-       d="m 448.65,93 v 32.7 h -6.37 V 93 a 3.19,3.19 0 0 1 3.19,-3.19 3.15,3.15 0 0 1 2.25,0.94 3.18,3.18 0 0 1 0.93,2.25 z"
-       id="path8" />
+       d="m 448.60682,365.13474 v 32.70001 h -6.37 v -32.70001 a 3.19,3.19 0 0 1 3.19,-3.19 3.15,3.15 0 0 1 2.25,0.94 3.18,3.18 0 0 1 0.93,2.25 z"
+       id="path8"
+       inkscape:label="path8" />
     <path
        class="cls-7"
        d="M 555.75,675.9 V 843.69 H 439.42 V 677 a 27.34,27.34 0 0 1 27.34,-27.34 h 62.75 a 26.24,26.24 0 0 1 26.24,26.24 z"
@@ -90,7 +97,7 @@
   <g
      id="Layer_2"
      data-name="Layer 2"
-     transform="translate(-407.715,-82.379135)">
+     transform="translate(-408.19,-355.69823)">
     <path
        class="cls-9"
        d="m 624.85,628.49 v 191.27 a 23.94,23.94 0 0 1 -23.93,23.93 H 432.12 A 23.93,23.93 0 0 1 408.19,819.76 V 716.08 a 9.46,9.46 0 0 1 0.95,-4.12 l 19.65,-40 a 8.38,8.38 0 0 1 0.85,-1.41 l 24.91,-34 20.45,-28.14 a 9.35,9.35 0 0 1 7.56,-3.85 h 118.36 a 23.93,23.93 0 0 1 23.93,23.93 z"
@@ -120,19 +127,15 @@
        x1="436.48001"
        y1="584"
        x2="436.48001"
-       y2="125.69"
+       y2="399.3739"
        id="line13" />
     <line
        class="cls-9"
        x1="454.01999"
        y1="584"
        x2="454.01999"
-       y2="125.58"
+       y2="398.98801"
        id="line14" />
-    <path
-       class="cls-9"
-       d="m 454.23,125.73 h -18.14 a 0.82,0.82 0 0 1 -0.82,-0.79 l -1,-31.69 a 9.78,9.78 0 0 1 5,-8.87 h 0.09 a 12.11,12.11 0 0 1 11.77,0 v 0 a 9.81,9.81 0 0 1 5,8.91 l -1.14,31.68 a 0.82,0.82 0 0 1 -0.76,0.76 z"
-       id="path14" />
     <path
        class="cls-9"
        d="M 555.75,843.69 V 675.9 A 26.24,26.24 0 0 0 529.51,649.66 H 466.76 A 27.34,27.34 0 0 0 439.42,677 v 166.69"
