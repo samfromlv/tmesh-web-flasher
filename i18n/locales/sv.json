@@ -1,5 +1,5 @@
 {
-  "title": "Meshtastic Web Flasher",
+  "title": "Meshtastic TMesh Web Flasher",
   "header": "Programmerare",
   "description": "Ett webbaserat verktyg för programmering av ESP32-firmware",
   "browser_warning": "Din webbläsare stöder inte WebSerial API. Vänligen växla till en kompatibel webbläsare, såsom Chrome eller Edge, för full funktionalitet.",

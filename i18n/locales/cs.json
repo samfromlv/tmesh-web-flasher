@@ -1,9 +1,9 @@
 {
-  "title": "Meshtastic Web Flasher",
+  "title": "Meshtastic TMesh Web Flasher",
   "header": "Flasher",
   "description": "Webový nástroj pro flashování firmwaru ESP32",
   "browser_warning": "Váš prohlížeč nepodporuje WebSerial API. Pro plnou funkčnost přepněte do kompatibilního prohlížeče, jako je Chrome nebo Edge.",
-  "header_title": "Meshtastic Web Flasher",
+  "header_title": "Meshtastic TMesh Web Flasher",
   "language": "Jazyk",
   "actions": {
     "connect": "Připojit",

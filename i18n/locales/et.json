@@ -3,7 +3,7 @@
   "header": "Flasher",
   "description": "Veebipõhine vahend ESP32 seadmete püsivara laadimiseks",
   "browser_warning": "Teie brauser ei toeta WebSerial API-t. Täieliku funktsionaalsuse tagamiseks kasuta ühilduvat brauserit, näiteks Chrome või Edge.",
-  "header_title": "Meshtastic Web Flasher",
+  "header_title": "Meshtastic TMesh Web Flasher",
   "language": "Keel",
   "actions": {
     "connect": "Ühenda",

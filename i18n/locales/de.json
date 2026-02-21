@@ -1,9 +1,9 @@
 {
-  "title": "Meshtastic Web Flasher",
+  "title": "Meshtastic TMesh Web Flasher",
   "header": "Flasher",
   "description": "Ein webbasiertes Tool um Meshtastic-Firmware zu flashen",
   "browser_warning": "Ihr Browser unterstützt die WebSerial API nicht. Bitte wechseln Sie zu einem kompatiblen Browser wie Chrome oder Edge, um die volle Funktionalität zu erhalten.",
-  "header_title": "Meshtastic Web Flasher",
+  "header_title": "Meshtastic TMesh Web Flasher",
   "language": "Sprache",
   "actions": {
     "connect": "Verbindung herstellen",

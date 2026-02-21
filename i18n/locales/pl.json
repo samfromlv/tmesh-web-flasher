@@ -1,9 +1,9 @@
 {
-  "title": "Meshtastic Web Flasher",
+  "title": "Meshtastic TMesh Web Flasher",
   "header": "Flasher",
   "description": "Narzędzie internetowe do flashowania firmware ESP32",
   "browser_warning": "Twoja przeglądarka nie obsługuje WebSerial API. Przełącz się na zgodną przeglądarkę, taką jak Chrome lub Edge, aby uzyskać pełną funkcjonalność.",
-  "header_title": "Meshtastic Web Flasher",
+  "header_title": "Meshtastic TMesh Web Flasher",
   "language": "Język",
   "actions": {
     "connect": "Połącz",

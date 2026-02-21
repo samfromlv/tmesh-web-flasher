@@ -3,7 +3,7 @@
   "header": "Flasher",
   "description": "Un outil web pour flasher le micrologiciel des ESP32",
   "browser_warning": "Votre navigateur ne prend pas en charge l'API WebSerial . Veuillez basculer vers un navigateur compatible, tel que Chrome ou Edge, pour une fonctionnalité complète.",
-  "header_title": "Meshtastic Web Flasher",
+  "header_title": "Meshtastic TMesh Web Flasher",
   "language": "Langue",
   "actions": {
     "connect": "Connecter",
