@@ -6,6 +6,7 @@ export default defineNuxtConfig({
   modules: ['@pinia/nuxt', '@vite-pwa/nuxt', '@nuxtjs/i18n', '@nuxt/eslint'],
 
   ssr: false,
+  nitro: { preset: 'static' },
   devtools: { enabled: true },
 
   app: {
@@ -28,6 +29,7 @@ export default defineNuxtConfig({
       datadogClientToken: process.env.DATADOG_CLIENT_TOKEN || '',
       datadogEnv: process.env.NODE_ENV || 'production',
       cookieyesClientId: process.env.COOKIEYES_CLIENT_ID || '',
+      githubIoBase: process.env.GITHUB_IO_BASE || '',
     },
   },
 

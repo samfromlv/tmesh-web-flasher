@@ -1,6 +1,9 @@
-import { eventMode } from '~/types/resources'
 
-export const GITHUB_IO_BASE = 'https://raw.githubusercontent.com/meshtastic/meshtastic.github.io/master'
+const GITHUB_IO_BASE = import.meta.env.VITE_GITHUB_IO_BASE || ''
+
+export function getGithubIoBase(): string {
+  return GITHUB_IO_BASE
+}
 
 /**
  * Determine the correct base path for a firmware version
@@ -10,12 +13,7 @@ export const GITHUB_IO_BASE = 'https://raw.githubusercontent.com/meshtastic/mesh
  */
 export function getManifestBasePath(version: string): string {
   const cleanVersion = version.replace(/^v/, '')
-  const eventVersion = eventMode.firmware.id.replace(/^v/, '')
-  // Check if this is the event firmware version
-  if (cleanVersion === eventVersion) {
-    return `event/hamcation2026/firmware-${cleanVersion}`
-  }
-  return `firmware-${cleanVersion}`
+  return `builds/${cleanVersion}`
 }
 
 /**
@@ -24,5 +22,9 @@ export function getManifestBasePath(version: string): string {
  * @returns The base URL for the firmware files directory
  */
 export function getFirmwareBaseUrl(version: string): string {
-  return `${GITHUB_IO_BASE}/${getManifestBasePath(version)}`
+  return `${getGithubIoBase()}/${getManifestBasePath(version)}`
+}
+
+export function getFirmwareRootUrl(relativePath: string): string {
+  return `${getGithubIoBase()}/${relativePath}`
 }

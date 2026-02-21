@@ -7,6 +7,10 @@ export default defineNuxtPlugin(() => {
   if (import.meta.client) {
     const config = useRuntimeConfig()
 
+    if (!config.public.datadogApplicationId || !config.public.datadogClientToken) {
+      return
+    }
+
     // Initialize Datadog RUM
     datadogRum.init({
       applicationId: config.public.datadogApplicationId || 'YOUR_APPLICATION_ID',
