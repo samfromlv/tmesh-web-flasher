@@ -1,4 +1,3 @@
-import { mande } from "mande";
 import { defineStore } from "pinia";
 import { vendorCobrandingTag } from "~/types/resources";
 
@@ -23,7 +22,6 @@ declare global {
   }
 }
 
-const firmwareApi = mande(createUrl("api/resource/deviceHardware"));
 
 export const useDeviceStore = defineStore("device", {
   state: () => {
