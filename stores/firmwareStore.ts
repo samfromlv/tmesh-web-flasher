@@ -5,7 +5,6 @@ import {
   Transport,
 } from 'esptool-js'
 import { saveAs } from 'file-saver'
-import { mande } from 'mande'
 import { defineStore } from 'pinia'
 import type { Terminal } from '@xterm/xterm'
 import { supportsNew8MBPartitionTable } from '~/utils/versionUtils'
@@ -44,12 +43,17 @@ import { createUrl } from './store'
 
 const previews = showPrerelease ? [currentPrerelease] : []
 
-const firmwareApi = mande(getFirmwareRootUrl('releases.json'))
+
 
 type ZipEntryWithData = { filename: string; getData: (writer: BlobWriter) => Promise<Blob> }
 
 function hasGetData(entry: unknown): entry is ZipEntryWithData {
   return !!entry && typeof (entry as any).getData === 'function'
+}
+
+function currentHourTimestamp(): number {
+  const now = new Date()
+  return Math.floor(now.getTime() / (1000 * 60 * 60))
 }
 
 /**
@@ -175,8 +179,13 @@ export const useFirmwareStore = defineStore('firmware', {
         return
       }
 
-      firmwareApi.get<FirmwareReleases>()
-        .then(async (response: FirmwareReleases) => {
+      fetch(getFirmwareRootUrl(`releases.json?ts=${currentHourTimestamp()}`))
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        return await response.json() as FirmwareReleases
+      }).then(async (response: FirmwareReleases) => {
           // Fetch release notes for each firmware version from meshtastic.github.io
           const fetchReleaseNotesForList = async (releases: FirmwareResource[]) => {
             for (const release of releases) {
