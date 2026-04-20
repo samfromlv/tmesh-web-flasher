@@ -23,7 +23,12 @@ declare global {
 }
 
 
-export const useDeviceStore = defineStore("device", {
+
+export const shouldAutoSelectMui = (target: DeviceHardware) => {
+  return target.hasMui === true && target.platformioTarget !== 'heltec-v4'
+}
+
+export const useDeviceStore = defineStore('device', {
   state: () => {
     return {
       selectedDevice: <DeviceHardware | undefined>undefined,
@@ -151,8 +156,8 @@ export const useDeviceStore = defineStore("device", {
         firmwareStore.setSelectedFirmware(firmwareStore.stable[0]);
       }
 
-      // Auto-select MUI for devices that support it
-      if (target.hasMui === true) {
+      // Auto-select MUI for supported variants except Heltec V4.
+      if (shouldAutoSelectMui(target)) {
         firmwareStore.$state.shouldInstallMui = true;
       }
 
