@@ -96,4 +96,5 @@ sw.*
 
 .playwright-mcp
 build.sh
+.vscode/settings.json
 publish.sh
