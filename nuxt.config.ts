@@ -11,7 +11,6 @@ const ignoredDevWatchPaths = [
 ]
 
 export default defineNuxtConfig({
-  ignore: ignoredDevWatchPaths,
 
   modules: ['@pinia/nuxt', '@vite-pwa/nuxt', '@nuxtjs/i18n', '@nuxt/eslint'],
 
@@ -42,13 +41,12 @@ export default defineNuxtConfig({
       githubIoBase: process.env.GITHUB_IO_BASE || '',
     },
   },
+  ignore: ignoredDevWatchPaths,
 
   routeRules: {
     // prerender index route by default
     '/': { prerender: true },
   },
-
-  compatibilityDate: '2024-09-03',
 
   watchers: {
     chokidar: {
@@ -56,8 +54,16 @@ export default defineNuxtConfig({
     },
   },
 
+  compatibilityDate: '2024-09-03',
+
   vite: {
     plugins: [],
+    // xz-decompress is a UMD bundle (with inlined WASM). Pre-bundle it so esbuild
+    // takes its CommonJS branch; served raw, its UMD global path dereferences an
+    // undefined `this` in ESM context and throws.
+    optimizeDeps: {
+      include: ['xz-decompress'],
+    },
     server: {
       watch: {
         ignored: ignoredDevWatchPaths,
