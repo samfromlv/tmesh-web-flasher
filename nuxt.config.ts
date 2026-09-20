@@ -1,6 +1,12 @@
 // nuxt.config.ts
 import { defineNuxtConfig } from 'nuxt/config'
 
+// Origin the built app's `api/...` calls resolve to, and the default target of the
+// dev proxy below — so one variable moves the whole app between API deployments.
+// api.meshtastic.org is the Cloudflare Worker rewrite of api.meshtastic.org;
+// API_ORIGIN=https://api.meshtastic.org rolls back to the Railway server.
+const apiOrigin = process.env.API_ORIGIN || 'https://api.meshtastic.org'
+
 const ignoredDevWatchPaths = [
   '**/.claude/**',
   '**/.git/**',
@@ -39,6 +45,19 @@ export default defineNuxtConfig({
       datadogEnv: process.env.NODE_ENV || 'production',
       cookieyesClientId: process.env.COOKIEYES_CLIENT_ID || '',
       githubIoBase: process.env.GITHUB_IO_BASE || '',
+      // Alphanaut feedback tool (2.8 bug reporter). Empty URL = feature disabled.
+      feedbackWebhookUrl: process.env.FEEDBACK_WEBHOOK_URL || '',
+      // NOTE: public runtime config ships in the browser bundle, so this token is
+      // intentionally NOT a secret — it is only a best-effort speed-bump against
+      // low-effort bots hitting the "Anyone"-access Apps Script endpoint. This is
+      // an SPA (ssr: false) with no server runtime to proxy through; real controls
+      // are the Apps Script's required-field validation, size caps, and kill switch.
+      feedbackToken: process.env.FEEDBACK_TOKEN || '',
+      // DEF CON 34 post-event survey. Empty URL = feature disabled, same
+      // convention as the feedback tool above. The Turnstile SITE key is public
+      // by design; its secret lives only in the Apps Script project.
+      surveyWebhookUrl: process.env.SURVEY_WEBHOOK_URL || '',
+      turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '',
     },
   },
   ignore: ignoredDevWatchPaths,
@@ -58,6 +77,12 @@ export default defineNuxtConfig({
 
   vite: {
     plugins: [],
+    // Vite statically replaces `process.env.NODE_ENV` and nothing else; in the
+    // browser `process.env` is an empty unenv shim. Inline the API origin the
+    // same way so stores/store.ts reads a real value client-side.
+    define: {
+      'process.env.API_ORIGIN': JSON.stringify(apiOrigin),
+    },
     // xz-decompress is a UMD bundle (with inlined WASM). Pre-bundle it so esbuild
     // takes its CommonJS branch; served raw, its UMD global path dereferences an
     // undefined `this` in ESM context and throws.
@@ -73,9 +98,9 @@ export default defineNuxtConfig({
       },
       proxy: {
         '^/api/.*': {
-          // Point at a local api.meshtastic.org instance with e.g.
-          // API_PROXY_TARGET=http://localhost:4000 pnpm dev
-          target: process.env.API_PROXY_TARGET ?? 'https://api.meshtastic.org/',
+          // Follows API_ORIGIN by default; point at a local API instance with
+          // e.g. API_PROXY_TARGET=http://localhost:4000 pnpm dev
+          target: process.env.API_PROXY_TARGET ?? apiOrigin,
           changeOrigin: true,
           followRedirects: true,
           rewrite: path => path.replace(/^\/api/, ''),

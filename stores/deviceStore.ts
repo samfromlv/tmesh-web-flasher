@@ -1,6 +1,12 @@
-import { defineStore } from "pinia";
-import { vendorCobrandingTag } from "~/types/resources";
-
+import { mande } from 'mande'
+import { defineStore } from 'pinia'
+import {
+  eventMode,
+  vendorCobrandingTag,
+} from '~/types/resources'
+import { applyEventDeviceOverrides } from '~/utils/eventDevices'
+import { isUnsupportedDevice } from '~/utils/unsupportedDevices'
+import { addRumAction, boardAttributes, eventAttributes, setTelemetryContext } from '~/utils/telemetry'
 import { MeshDevice } from "@meshtastic/core";
 import { TransportWebSerial } from "@meshtastic/transport-web-serial";
 
@@ -34,7 +40,11 @@ export const useDeviceStore = defineStore('device', {
       selectedDevice: <DeviceHardware | undefined>undefined,
       selectedTarget: <DeviceHardware | undefined>undefined,
       tag: <string | undefined>undefined,
-      targets: <DeviceHardware[]>[],
+      apiTargets: <DeviceHardware[]>[],
+      // Boards the registry does not mark activelySupported - both the too-new
+      // and the long-retired. Held back from `targets` until the Konami code
+      // reveals them; see unsupportedTargetsUnlocked below.
+      unsupportedApiTargets: <DeviceHardware[]>[],
       isConnecting: false,
       abortController: <AbortController | undefined>undefined,
       readerClosed: <Promise<any> | undefined>undefined,
@@ -43,6 +53,39 @@ export const useDeviceStore = defineStore('device', {
     };
   },
   getters: {
+    /**
+     * The API device list plus any devices only the active event's firmware
+     * build ships. Derived (not baked into state) so it stays correct however
+     * event mode and the device fetch interleave — plugins/eventMode.client.ts
+     * can still re-resolve the edition from the live API after mount.
+     */
+    targets(): DeviceHardware[] {
+      // Co-branded builds are pinned to one vendor's devices; never widen them.
+      if (vendorCobrandingTag.length > 0) return this.apiTargets
+      const base = applyEventDeviceOverrides(this.apiTargets, eventMode.enabled ? eventMode.eventTag : undefined)
+      if (!this.unsupportedTargetsUnlocked) return base
+      return base.concat(this.unsupportedApiTargets)
+    },
+    /**
+     * Whether boards the registry does not mark activelySupported are showing.
+     * Gated on the Konami code *and* a published nightly of the eligible
+     * series, so a revealed board always has a build to flash it with.
+     */
+    unsupportedTargetsUnlocked(): boolean {
+      if (vendorCobrandingTag.length > 0 || eventMode.enabled) return false
+      return useFirmwareStore().unsupportedDevicesUnlocked
+    },
+    /**
+     * Whether the selected board is one the registry does not mark
+     * activelySupported. Those are pinned to the nightly - `develop` is the
+     * only branch guaranteed to still build the variant - so neither another
+     * release nor a locally uploaded zip or bin may be flashed onto one: both
+     * would carry firmware built for different hardware. Firmware.vue offers
+     * only the nightly and refuses the upload; Flash.vue enforces the same.
+     */
+    nightlyOnlyTarget(): boolean {
+      return isUnsupportedDevice(this.selectedTarget)
+    },
     filteredDevices(): DeviceHardware[] {
       if (this.tag) {
         return this.targets.filter(
@@ -89,16 +132,45 @@ export const useDeviceStore = defineStore('device', {
     isSelectedNrf(): boolean {
       return this.selectedArchitecture.startsWith("nrf52");
     },
+    /**
+     * Whether the selected nRF52 target's bootloader carries SoftDevice S140
+     * v7.3.0 (app base 0x27000) rather than v6.1.1 (app base 0x26000). This
+     * picks the factory-erase UF2: the v6.1.1 build is flashed at 0x26000,
+     * which on a v7.3.0 device overwrites the last page of the SoftDevice and
+     * leaves the board unbootable until the bootloader + SoftDevice package is
+     * reflashed (#85, #145).
+     *
+     * Every Seeed nRF52840 board ships the v7.3.0 bootloader (see
+     * meshtastic/nrf52_factory_erase), so Seeed is treated as v7.3.0 by default
+     * rather than adding each new board here one at a time. Mis-serving the
+     * v7.3.0 file to a v6.1.1 board is the benign direction (recoverable with
+     * a normal firmware reflash), so defaulting towards v7.3.0 is the safe bet.
+     */
     isSoftDevice7point3(): boolean {
       const sd73Devices = [
-        "WIO_WM1110",
-        "TRACKER_T1000_E",
-        "XIAO_NRF52_KIT",
-        "SEEED_SOLAR_NODE",
-        "SEEED_WIO_TRACKER_L1",
-        "SEEED_WIO_TRACKER_L1_EINK",
-      ];
-      return sd73Devices.includes(this.selectedTarget?.hwModelSlug || "");
+        'WIO_WM1110',
+        'TRACKER_T1000_E',
+        'XIAO_NRF52_KIT',
+        'SEEED_SOLAR_NODE',
+        'SEEED_WIO_TRACKER_L1',
+        'SEEED_WIO_TRACKER_L1_EINK',
+        'MESH_TRACKER_X1',
+      ]
+      const target = this.selectedTarget
+      if (!target) return false
+      if (sd73Devices.includes(target.hwModelSlug || '')) return true
+      return this.isSelectedNrf && (target.tags?.includes('Seeed') ?? false)
+    },
+    /**
+     * Factory-erase UF2 (under /public/uf2) for the selected target. The nRF52
+     * build has to match the target's SoftDevice layout — see
+     * isSoftDevice7point3 for what happens when it doesn't.
+     */
+    eraseUf2File(): string {
+      if (!this.isSelectedNrf) {
+        return '/uf2/pico_erase.uf2'
+      }
+      return this.isSoftDevice7point3 ? '/uf2/nrf_erase_sd7_3.uf2' : '/uf2/nrf_erase2.uf2'
     },
     enterDfuVersion(): string {
       if (this.isSelectedNrf) {
@@ -131,19 +203,22 @@ export const useDeviceStore = defineStore('device', {
       }
     },
     setTargetsList(targets: DeviceHardware[]) {
+      // meshtasticd targets are never flashable from here, whatever their
+      // support status, so they are dropped from both lists up front.
+      const flashable = targets.filter(
+        (t: DeviceHardware) => !t.architecture.toLowerCase().startsWith('portduino'),
+      )
       if (vendorCobrandingTag.length > 0) {
-        this.targets = targets.filter(
-          (t: DeviceHardware) => t.activelySupported
-            && !t.architecture.toLowerCase().startsWith('portduino')
-            && t.tags?.includes(vendorCobrandingTag),
+        this.apiTargets = flashable.filter(
+          (t: DeviceHardware) => t.activelySupported && t.tags?.includes(vendorCobrandingTag),
         )
+        // Co-branded builds are pinned to one vendor's supported devices and
+        // are never widened, so nothing is held back for them.
+        this.unsupportedApiTargets = []
+        return
       }
-      else {
-        this.targets = targets.filter(
-          (t: DeviceHardware) => t.activelySupported
-            && !t.architecture.toLowerCase().startsWith('portduino'),
-        )
-      }
+      this.apiTargets = flashable.filter((t: DeviceHardware) => t.activelySupported)
+      this.unsupportedApiTargets = flashable.filter(isUnsupportedDevice)
     },
     async setSelectedTarget(target: DeviceHardware) {
       this.selectedTarget = target;
@@ -151,8 +226,18 @@ export const useDeviceStore = defineStore('device', {
       const firmwareStore = useFirmwareStore();
 
       await new Promise((_) => setTimeout(_, 250));
-      if (!firmwareStore.hasFirmwareFile && !firmwareStore.hasOnlineFirmware && !firmwareStore.prDeepLinkPending && firmwareStore.stable.length > 0) {
-        firmwareStore.setSelectedFirmware(firmwareStore.stable[0]);
+      // A board the registry does not mark activelySupported is pinned to the
+      // nightly, overriding whatever was selected for the previous target:
+      // develop is the only branch guaranteed to still build its variant.
+      // Firmware.vue offers nothing else while such a board is selected, so
+      // this is the only build it can ever be flashed with. The reveal is
+      // gated on this nightly existing, so it is present here.
+      if (isUnsupportedDevice(target)) {
+        const nightly = firmwareStore.unlockNightly
+        if (nightly) firmwareStore.setSelectedFirmware(nightly)
+      }
+      else if (!firmwareStore.hasFirmwareFile && !firmwareStore.hasOnlineFirmware && !firmwareStore.prDeepLinkPending && firmwareStore.stable.length > 0) {
+        firmwareStore.setSelectedFirmware(firmwareStore.stable[0])
       }
 
       // Auto-select MUI for supported variants except Heltec V4.
@@ -160,19 +245,18 @@ export const useDeviceStore = defineStore('device', {
         firmwareStore.$state.shouldInstallMui = true;
       }
 
-      // Update Datadog RUM context with hardware model and platformio target
-      if (import.meta.client) {
-        try {
-          const { datadogRum } = await import("@datadog/browser-rum");
-          datadogRum.setGlobalContextProperty("hwModel", target.hwModel);
-          datadogRum.setGlobalContextProperty(
-            "platformioTarget",
-            target.platformioTarget,
-          );
-        } catch (error) {
-          // Datadog RUM not available, silently continue
-        }
-      }
+      // First joint of the provisioning funnel (issue #403). The context sticks
+      // to every later event in the session; the action makes "which board did
+      // they pick" countable on its own — including for the ~half of visitors
+      // who never get as far as flashing.
+      const board = boardAttributes(target)
+      setTelemetryContext({
+        // Original keys kept so existing dashboards/monitors keep resolving.
+        hwModel: target.hwModel,
+        platformioTarget: target.platformioTarget,
+        ...board,
+      })
+      addRumAction('select_board', { ...board, ...eventAttributes(eventMode) })
     },
     setSelectedTag(tag: string) {
       if (tag === "all") {

@@ -60,7 +60,156 @@
       <h1 class="logo-title">
         <span class="logo-title-gradient">{{ $t('header_title') }}</span>
       </h1>
-      <p class="logo-tagline">{{ eventMode.eventName }}</p>
+      <p class="logo-tagline">
+        {{ eventMode.eventName }}
+      </p>
+    </div>
+
+    <!-- Open Sauce event branding variant -->
+    <div
+      v-else-if="eventMode.enabled && eventMode.eventTag === 'Open Sauce'"
+      class="logo-header-content"
+    >
+      <div class="logo-container">
+        <div class="logo-glow">
+          <img
+            v-if="themeStore.isDark"
+            src="@/assets/img/logo.svg"
+            class="logo-icon"
+            alt="Meshtastic Logo"
+          >
+          <img
+            v-else
+            src="@/assets/img/logo-dark.svg"
+            class="logo-icon"
+            alt="Meshtastic Logo"
+          >
+        </div>
+        <span class="logo-separator">×</span>
+        <img
+          src="@/assets/img/opensauce.webp"
+          class="logo-icon-event logo-icon-opensauce"
+          alt="Open Sauce 2026 Logo"
+        >
+      </div>
+      <h1 class="logo-title">
+        <span class="logo-title-gradient">{{ $t('header_title') }}</span>
+      </h1>
+      <p class="logo-tagline">
+        {{ eventMode.tagline || eventMode.eventName }}
+      </p>
+    </div>
+
+    <!-- Burning Man event branding variant -->
+    <div
+      v-else-if="eventMode.enabled && eventMode.eventTag === 'Burning Man'"
+      class="logo-header-content"
+    >
+      <div class="logo-container">
+        <div class="logo-glow">
+          <img
+            v-if="themeStore.isDark"
+            src="@/assets/img/logo.svg"
+            class="logo-icon"
+            alt="Meshtastic Logo"
+          >
+          <img
+            v-else
+            src="@/assets/img/logo-dark.svg"
+            class="logo-icon"
+            alt="Meshtastic Logo"
+          >
+        </div>
+        <span class="logo-separator">×</span>
+        <img
+          v-if="themeStore.isDark"
+          src="@/assets/img/burningmesh.webp"
+          class="logo-icon-event logo-icon-burningmesh"
+          alt="Burning Mesh Logo"
+        >
+        <img
+          v-else
+          src="@/assets/img/burningmesh-dark.webp"
+          class="logo-icon-event logo-icon-burningmesh"
+          alt="Burning Mesh Logo"
+        >
+      </div>
+      <h1 class="logo-title">
+        <span class="logo-title-gradient">{{ $t('header_title') }}</span>
+      </h1>
+      <p class="logo-tagline">
+        {{ eventMode.tagline || eventMode.eventName }}
+      </p>
+    </div>
+
+    <!-- DEF CON event branding variant -->
+    <div
+      v-else-if="eventMode.enabled && eventMode.eventTag === 'DEFCON'"
+      class="logo-header-content"
+    >
+      <div class="logo-container">
+        <div class="logo-glow">
+          <img
+            v-if="themeStore.isDark"
+            src="@/assets/img/logo.svg"
+            class="logo-icon"
+            alt="Meshtastic Logo"
+          >
+          <img
+            v-else
+            src="@/assets/img/logo-dark.svg"
+            class="logo-icon"
+            alt="Meshtastic Logo"
+          >
+        </div>
+        <span class="logo-separator">×</span>
+        <img
+          src="@/assets/img/defcon.svg"
+          class="logo-icon-event logo-icon-defcon"
+          alt="DEF CON 34 Logo"
+        >
+      </div>
+      <h1 class="logo-title">
+        <span class="logo-title-gradient">{{ $t('header_title') }}</span>
+      </h1>
+      <p class="logo-tagline">
+        {{ eventMode.tagline || eventMode.eventName }}
+      </p>
+    </div>
+
+    <!-- FAB26 Boston event branding variant -->
+    <div
+      v-else-if="eventMode.enabled && eventMode.eventTag === 'FAB26'"
+      class="logo-header-content"
+    >
+      <div class="logo-container">
+        <div class="logo-glow">
+          <img
+            v-if="themeStore.isDark"
+            src="@/assets/img/logo.svg"
+            class="logo-icon"
+            alt="Meshtastic Logo"
+          >
+          <img
+            v-else
+            src="@/assets/img/logo-dark.svg"
+            class="logo-icon"
+            alt="Meshtastic Logo"
+          >
+        </div>
+        <span class="logo-separator">×</span>
+        <img
+          src="@/assets/img/fab26.png"
+          class="logo-icon-event logo-icon-fab26"
+          alt="FAB26 Boston Logo"
+        >
+      </div>
+      <h1 class="logo-title">
+        <span class="logo-title-gradient">{{ $t('header_title') }}</span>
+      </h1>
+      <p class="logo-tagline">
+        {{ eventMode.tagline || eventMode.eventName }}
+      </p>
     </div>
 
     <!-- Hamvention event branding variant -->
@@ -78,7 +227,44 @@
       <h1 class="logo-title">
         <span class="logo-title-gradient">{{ $t('header_title') }}</span>
       </h1>
-      <p class="logo-tagline">{{ eventMode.eventName }}</p>
+      <p class="logo-tagline">
+        {{ eventMode.eventName }}
+      </p>
+    </div>
+
+    <!-- Generic event branding (theme-driven, e.g. DEFCON) -->
+    <div
+      v-else-if="eventMode.enabled"
+      class="logo-header-content"
+    >
+      <div class="logo-container">
+        <div class="logo-glow">
+          <img
+            v-if="eventMode.iconUrl"
+            :src="eventMode.iconUrl"
+            class="logo-icon-event"
+            :alt="`${eventMode.eventName} Logo`"
+          >
+          <img
+            v-else-if="themeStore.isDark"
+            src="@/assets/img/logo.svg"
+            class="logo-icon"
+            alt="Meshtastic Logo"
+          >
+          <img
+            v-else
+            src="@/assets/img/logo-dark.svg"
+            class="logo-icon"
+            alt="Meshtastic Logo"
+          >
+        </div>
+      </div>
+      <h1 class="logo-title">
+        <span class="logo-title-gradient">{{ $t('header_title') }}</span>
+      </h1>
+      <p class="logo-tagline">
+        {{ eventMode.tagline || eventMode.eventName }}
+      </p>
     </div>
 
     <!-- Standard variant -->
@@ -105,7 +291,9 @@
       <h1 class="logo-title">
         <span class="logo-title-gradient">{{ $t('header_title') }}</span>
       </h1>
-      <p class="logo-tagline">{{ $t('description') }}</p>
+      <p class="logo-tagline">
+        {{ $t('description') }}
+      </p>
     </div>
   </div>
 </template>
@@ -205,6 +393,12 @@ const { eventMode } = useEventMode()
   border-radius: 0.5rem;
 }
 
+/* The Open Sauce logo ships white for dark headers; darken to a solid
+   silhouette in light mode so it stays visible on a light background. */
+:root[data-theme="light"] .logo-icon-opensauce {
+  filter: brightness(0);
+}
+
 @media (min-width: 640px) {
   .logo-icon-event {
     height: 6rem;
@@ -214,6 +408,70 @@ const { eventMode } = useEventMode()
 @media (min-width: 768px) {
   .logo-icon-event {
     height: 7rem;
+  }
+}
+
+/* The full DEF CON 34 mark (mesh burst + skull) is a detailed square, so it runs
+   a little larger than the M to let the artwork read. It ships transparent and
+   theme-adaptive: the opaque gradient mesh reads on either background and the
+   skull's knockout face shows the page behind it, so it needs no filter/tile. */
+.logo-icon-defcon {
+  height: 6rem;
+}
+
+@media (min-width: 640px) {
+  .logo-icon-defcon {
+    height: 7rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .logo-icon-defcon {
+    height: 8rem;
+  }
+}
+
+/* The Burning Mesh lockup is the same art the event firmware boots to, wordmark
+   and all, so it runs a little larger than the M to keep "BURNING MESH" legible.
+   It ships in two theme-paired cuts (white figure + mint wordmark for the dark
+   header, ink figure + the light theme's green for the cream one) rather than a
+   filter, so the green survives in both. */
+.logo-icon-burningmesh {
+  height: 6rem;
+  border-radius: 0;
+}
+
+@media (min-width: 640px) {
+  .logo-icon-burningmesh {
+    height: 7rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .logo-icon-burningmesh {
+    height: 8rem;
+  }
+}
+
+/* The FAB26 Boston mark is a round badge with the "26" tab breaking its top-right
+   edge, so it runs a little larger than the M to let the badge read. It ships
+   transparent: the navy disc pops on the cream light header and stays distinct
+   from the near-black dark header, while its cream/gold/red interior reads on
+   both — so it needs no filter. */
+.logo-icon-fab26 {
+  height: 6rem;
+  border-radius: 0;
+}
+
+@media (min-width: 640px) {
+  .logo-icon-fab26 {
+    height: 7rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .logo-icon-fab26 {
+    height: 8rem;
   }
 }
 

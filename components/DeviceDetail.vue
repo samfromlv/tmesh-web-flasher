@@ -21,6 +21,13 @@
         {{ props.device.architecture.replace('-', '') }}
       </span>
       <span
+        v-if="isUnsupportedDevice(props.device)"
+        class="text-xs font-medium me-2 px-2.5 py-0.5 h-6 rounded bg-cyan-700 dark:bg-cyan-800 text-white dark:text-gray-100"
+        :title="$t('device.not_actively_supported')"
+      >
+        {{ $t('device.unreleased') }}
+      </span>
+      <span
         v-for="tag in props.device.tags"
         class="text-xs font-medium px-2.5 py-0.5 h-6 rounded bg-indigo-600 dark:bg-indigo-500 text-white dark:text-gray-100 me-1"
       >
@@ -31,6 +38,13 @@
         src="/img/Meshtastic-UI-Short.svg"
         class="h-6 m-1 pb-1"
         alt="Meshtastic UI"
+      >
+      <img
+        v-if="requiresHamLicense(props.device)"
+        src="@/assets/img/hamvention.svg"
+        class="h-6 m-1 pb-1"
+        :title="$t('device.ham_license_required')"
+        :alt="$t('device.ham_license_required')"
       >
     </div>
     <div
@@ -61,10 +75,14 @@
           :href="deviceUrl"
           target="_blank"
           rel="noopener"
-          title="Manufacturer page (external link)"
-          class="text-theme hover:opacity-80"
+          class="inline-flex items-center gap-2 text-[10.5px] text-theme-accent cursor-pointer transition-colors duration-200 ease-out"
+          @click.stop
         >
-          <Link2Icon class="w-6 h-6 text-meshtastic transition-transform duration-300 ease-in-out hover:scale-110 hover:rotate-12 cursor-default" />
+          <Tag
+            class="w-[22px] h-[22px] shrink-0"
+            :stroke-width="2"
+          />
+          {{ $t('device.product_link') }}
         </a>
       </div>
     </div>
@@ -74,13 +92,15 @@
 <script lang="ts" setup>
 import type { DeviceHardware } from '~/types/api'
 import { supportedVendorDeviceTags } from '~/types/resources'
+import { requiresHamLicense } from '~/utils/deviceBadges'
+import { isUnsupportedDevice } from '~/utils/unsupportedDevices'
 import { useFirmwareStore } from '../stores/firmwareStore'
 import { computed } from 'vue'
 
 import {
   BadgeCheck,
   ShieldAlert,
-  Link2Icon,
+  Tag,
 } from 'lucide-vue-next'
 
 const firmwareStore = useFirmwareStore()

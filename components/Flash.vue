@@ -45,7 +45,7 @@
             <div class="modal-content relative flex flex-col max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl text-theme">
               <!-- Chirpy Bouncing Background -->
               <video
-                v-if="firmwareStore.isFlashing && firmwareStore.$state.prereleaseUnlocked"
+                v-if="firmwareStore.isFlashing && firmwareStore.$state.konamiUnlocked"
                 autoplay
                 loop
                 muted
@@ -76,7 +76,7 @@
             <div class="modal-content relative flex flex-col max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl text-theme">
               <!-- Chirpy Bouncing Background -->
               <video
-                v-if="firmwareStore.isFlashing && firmwareStore.$state.prereleaseUnlocked"
+                v-if="firmwareStore.isFlashing && firmwareStore.$state.konamiUnlocked"
                 autoplay
                 loop
                 muted
@@ -137,7 +137,7 @@ const preflightCheck = async () => {
     return
   }
 
-  // PR builds have no files on meshtastic.github.io — availability comes
+  // PR builds have no files on release.meshtastic.org — availability comes
   // from the build's targets list instead of HEAD requests
   if (firmwareStore.isPrBuild) {
     fileExistsOnServer.value = firmwareStore.isPrTargetAvailable(deviceStore.$state.selectedTarget.platformioTarget)
@@ -179,6 +179,10 @@ const preflightCheck = async () => {
 // Either we have a custom zip file or a selected firmware release
 const canFlash = computed(() => {
   const hasDevice = deviceStore.selectedTarget?.hwModel > 0
+  // A board the registry does not mark activelySupported is pinned to the
+  // nightly, so a local upload is never a valid source for one - Firmware.vue
+  // refuses the upload, and this refuses to flash anything that slipped past.
+  if (deviceStore.nightlyOnlyTarget && firmwareStore.hasFirmwareFile) return false
   const hasFirmware = firmwareStore.hasFirmwareFile || firmwareStore.hasOnlineFirmware
   return !serialMonitorStore.isConnected && hasDevice && hasFirmware
     && (fileExistsOnServer.value || firmwareStore.hasFirmwareFile)

@@ -98,3 +98,4 @@ sw.*
 build.sh
 .vscode/settings.json
 publish.sh
+run.sh

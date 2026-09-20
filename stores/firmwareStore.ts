@@ -15,7 +15,24 @@ import {
   showPrerelease,
   eventMode,
 } from '~/types/resources'
-import { getFirmwareBaseUrl, getFirmwareRootUrl } from '~/utils/firmwareUrl'
+import {
+  getFirmwareBaseUrl,
+  NIGHTLY_BASE,
+  nightlyState,
+  setNightlyVersion,
+} from '~/utils/firmwareUrl'
+import { findUnlockNightly } from '~/utils/unsupportedDevices'
+import {
+  addRumAction,
+  boardAttributes,
+  classifyFlashError,
+  eventAttributes,
+  type FirmwareChannel,
+  type FlashMethod,
+  logTelemetry,
+  resolveFirmwareChannel,
+  setTelemetryContext,
+} from '~/utils/telemetry'
 
 import { track } from '@vercel/analytics'
 import { useSessionStorage } from '@vueuse/core'
@@ -54,8 +71,14 @@ function currentHourTimestamp(): number {
   return Math.floor(now.getTime() / (1000 * 60 * 60))
 }
 
+
+// Attributes of the flash currently in progress, captured at flash_start so the
+// success/error actions describe the same attempt. Outside state for the same
+// reason as above — it is telemetry bookkeeping, not UI state.
+let activeFlash: Record<string, unknown> | undefined
+
 /**
- * Fetch release notes from meshtastic.github.io
+ * Fetch release notes from release.meshtastic.org
  */
 async function fetchReleaseNotes(version: string): Promise<string> {
   try {
@@ -124,6 +147,7 @@ export const useFirmwareStore = defineStore('firmware', {
       stable: new Array<FirmwareResource>(),
       alpha: new Array<FirmwareResource>(),
       previews: previews,
+      nightly: new Array<FirmwareResource>(),
       pullRequests: new Array<FirmwareResource>(),
       prFirmware: <FirmwareResource | undefined>undefined,
       prDeepLinkPending: false,
@@ -134,7 +158,7 @@ export const useFirmwareStore = defineStore('firmware', {
       // previous selection can detect they are stale and skip store writes
       prGeneration: 0,
       selectedFirmware: eventMode.enabled ? eventMode.firmware : <FirmwareResource | undefined>{},
-      selectedFile: <File | undefined>{},
+      selectedFile: <File | undefined>undefined,
       baudRate: 115200,
       hasSeenReleaseNotes: false,
       shouldCleanInstall: false,
@@ -150,7 +174,9 @@ export const useFirmwareStore = defineStore('firmware', {
       isConnected: false,
       port: <SerialPort | undefined>{},
       couldntFetchFirmwareApi: false,
-      prereleaseUnlocked: useSessionStorage('prereleaseUnlocked', false),
+      // Konami code: retro theme, chirpy flash background, and the boards the
+      // registry hides as not activelySupported (see unlockNightly).
+      konamiUnlocked: useSessionStorage('konamiUnlocked', false),
       hasManifest: false,
       manifest: <FirmwareManifest | undefined>undefined,
       releaseManifest: <ReleaseManifest | undefined>undefined,
@@ -173,10 +199,43 @@ export const useFirmwareStore = defineStore('firmware', {
       return targets.some(t => t.board === pioTarget || t.board === `${pioTarget}-tft` || t.board === `${pioTarget}-inkhud`)
     },
     percentDone: state => `${state.flashPercentDone}%`,
+    /**
+     * Which section the selected firmware came from (stable / alpha / preview /
+     * nightly / pr / event / local upload). Reported with every funnel action so
+     * flash success rates can be split by release channel.
+     */
+    firmwareChannel(state): FirmwareChannel {
+      return resolveFirmwareChannel({
+        firmware: state.selectedFirmware,
+        hasLocalFile: (state.selectedFile?.name || '').length > 0,
+        isEventMode: eventMode.enabled,
+        nightlyId: nightlyState.id,
+        alphaIds: state.alpha.map(f => f.id),
+        previewIds: state.previews.map(f => f.id),
+      })
+    },
+    /**
+     * The nightly that boards hidden as not activelySupported may be flashed
+     * with, once the Konami code has revealed them. Undefined before the
+     * nightly index resolves, in event mode (pinned to a single build), and for
+     * any nightly below the series floor - each of which keeps those boards out
+     * of the picker, so a revealed board always has something to flash.
+     */
+    unlockNightly(state): FirmwareResource | undefined {
+      if (eventMode.enabled) return undefined
+      return findUnlockNightly(state.nightly)
+    },
+    /** Whether the picker should reveal the boards the registry hides. */
+    unsupportedDevicesUnlocked(): boolean {
+      return this.konamiUnlocked && !!this.unlockNightly
+    },
     firmwareVersion: state => state.selectedFirmware?.id ? state.selectedFirmware.id.replace('v', '') : '.+',
     canShowFlash: state => state.selectedFirmware?.id ? state.hasSeenReleaseNotes : true,
-    isZipFile: state => state.selectedFile?.name.endsWith('.zip'),
-    isFactoryBin: state => state.selectedFile?.name.endsWith('.factory.bin'),
+    // Guard the name too, not just the file: a File is only ever set from a real
+    // upload, but reading these before one exists must not throw — they are
+    // evaluated from watchers and render (see components/targets/Esp32.vue).
+    isZipFile: state => (state.selectedFile?.name || '').endsWith('.zip'),
+    isFactoryBin: state => (state.selectedFile?.name || '').endsWith('.factory.bin'),
   },
   actions: {
     clearState() {
@@ -194,6 +253,15 @@ export const useFirmwareStore = defineStore('firmware', {
       // Skip fetching firmware list in event mode - use locked firmware only
       if (eventMode.enabled) {
         console.log('Event mode enabled, skipping firmware API fetch')
+        // The locked build is pre-seeded into state, so setSelectedFirmware()
+        // never runs for it — and that is the only place the release manifest is
+        // fetched. Without it every event flash falls through to the legacy
+        // convention-based path, which uses stale partition offsets and asks for
+        // bleota*.bin (gone since 2.8). Resolve it here so event domains take the
+        // same manifest-driven path as flash.meshtastic.org.
+        if (eventMode.firmware?.id && !this.releaseManifest) {
+          await this.setSelectedFirmware(eventMode.firmware)
+        }
         return
       }
 
@@ -204,7 +272,7 @@ export const useFirmwareStore = defineStore('firmware', {
         }
         return await response.json() as FirmwareReleases
       }).then(async (response: FirmwareReleases) => {
-          // Fetch release notes for each firmware version from meshtastic.github.io
+          // Fetch release notes for each firmware version from release.meshtastic.org
           const fetchReleaseNotesForList = async (releases: FirmwareResource[]) => {
             for (const release of releases) {
               // Only fetch if we don't already have release notes from the API
@@ -239,8 +307,37 @@ export const useFirmwareStore = defineStore('firmware', {
         })
     },
     /**
+     * Discover the current develop "nightly" build published to
+     * nightly.meshtastic.org. Skipped entirely in event mode (never on event
+     * firmwares).
+     */
+    async fetchNightly() {
+      return
+
+      try {
+        const response = await fetch(`${NIGHTLY_BASE}/index.json`)
+        if (!response.ok) return // 404 before the first nightly is published -> no section
+        const data = await response.json() as { version?: string, id?: string, title?: string }
+        const id = data.id ?? (data.version ? `v${data.version}` : undefined)
+        if (!id) {
+          console.warn('Nightly index.json missing id/version', data)
+          return // malformed pointer -> don't surface a broken entry
+        }
+        setNightlyVersion(id) // register so getFirmwareBaseUrl routes it to NIGHTLY_BASE
+        const version = id.replace(/^v/, '')
+        this.nightly = [{
+          id,
+          title: data.title ?? `Meshtastic Firmware ${version} Nightly`,
+        }]
+      }
+      catch (error) {
+        console.warn('No nightly build available', error)
+      }
+    },
+    /**
      * Load a pull request's CI build as a selectable firmware version.
-     * Resolves PR metadata and artifact info through api.meshtastic.org.
+     * Resolves PR metadata and artifact info through the API origin
+     * (API_ORIGIN — see stores/store.ts).
      * @param prNumber - The meshtastic/firmware pull request number
      * @returns True if the PR build was loaded and selected
      */
@@ -386,7 +483,7 @@ export const useFirmwareStore = defineStore('firmware', {
       this.releaseManifest = undefined
 
       // PR builds carry their targets list and synthesized release notes with
-      // them — nothing is hosted on meshtastic.github.io for these versions
+      // them — nothing is hosted on release.meshtastic.org for these versions
       if (firmware.prBuild) {
         this.releaseManifest = { version: firmware.prBuild.version, targets: firmware.prBuild.targets }
       }
@@ -410,19 +507,14 @@ export const useFirmwareStore = defineStore('firmware', {
         }
       }
 
-      // Update Datadog RUM context with firmware version
-      if (import.meta.client) {
-        try {
-          const { datadogRum } = await import('@datadog/browser-rum')
-          datadogRum.setGlobalContextProperty('firmware_version', firmware.id)
-        }
-        catch (error) {
-          console.error('Error setting Datadog RUM context:', error)
-        }
-      }
+      // Carry the firmware onto every later RUM/Logs event in the session.
+      setTelemetryContext({
+        firmware_version: firmware.id,
+        firmware_channel: this.firmwareChannel,
+      })
     },
     getReleaseFileUrl(fileName: string): string {
-      // PR build files come from artifact zips, not meshtastic.github.io
+      // PR build files come from artifact zips, not release.meshtastic.org
       if (!this.selectedFirmware?.id || this.selectedFirmware.prBuild) return ''
       return `${getFirmwareBaseUrl(this.selectedFirmware.id)}/${fileName}`
     },
@@ -431,7 +523,11 @@ export const useFirmwareStore = defineStore('firmware', {
       if (!source && this.selectedFirmware?.prBuild && arch) {
         source = await this.getPrArchZip(arch)
       }
-      if (!source) return
+      // Throw rather than no-op: the caller reports the hand-off as a completed
+      // flash, so "nothing to extract from" has to be distinguishable.
+      if (!source) {
+        throw new Error('No firmware zip to extract a UF2 from')
+      }
       const entry = await extractZipEntry(source, filename => searchRegex.test(filename))
       if (!entry) {
         throw new Error(`Could not find file with pattern ${searchRegex} in zip`)
@@ -450,6 +546,7 @@ export const useFirmwareStore = defineStore('firmware', {
     },
     async updateEspFlashLegacy(fileName: string, selectedTarget: DeviceHardware) {
       const terminal = await openTerminal()
+      this.trackFlashStart(selectedTarget, { method: 'esptool', cleanInstall: false })
 
       try {
         console.log(`Legacy update flash: ${fileName} at offset 0x10000`)
@@ -474,11 +571,12 @@ export const useFirmwareStore = defineStore('firmware', {
             if (written === total) {
               this.isFlashing = false
               console.log('Done flashing!')
-              this.trackDownload(selectedTarget, true)
             }
           },
         }
-        await this.startWrite(terminal, espLoader, transport, flashOptions)
+        // Legacy update flash, not a clean install — this used to report every
+        // one of them as a full erase.
+        await this.startWrite(terminal, espLoader, transport, flashOptions, { selectedTarget, cleanInstall: false })
       }
       catch (error: any) {
         this.handleError(error, terminal)
@@ -488,6 +586,7 @@ export const useFirmwareStore = defineStore('firmware', {
       console.error('Error flashing:', error)
       terminal.writeln('')
       terminal.writeln(`\x1b[38;5;9m${error}\x1b[0m`)
+      this.trackFlashError(error)
     },
     /**
      * Get the partition offset from the manifest for a given partition name
@@ -645,6 +744,7 @@ export const useFirmwareStore = defineStore('firmware', {
       }
 
       const terminal = await openTerminal()
+      this.trackFlashStart(selectedTarget, { method: 'esptool', cleanInstall: false })
 
       try {
         const filesToFlash: Array<{ data: string, address: number }> = []
@@ -714,11 +814,10 @@ export const useFirmwareStore = defineStore('firmware', {
             if (written === total) {
               this.isFlashing = false
               console.log('Done flashing!')
-              this.trackDownload(selectedTarget, false)
             }
           },
         }
-        await this.startWrite(terminal, espLoader, transport, flashOptions)
+        await this.startWrite(terminal, espLoader, transport, flashOptions, { selectedTarget, cleanInstall: false })
       }
       catch (error: any) {
         this.handleError(error, terminal)
@@ -736,6 +835,7 @@ export const useFirmwareStore = defineStore('firmware', {
       }
 
       const terminal = await openTerminal()
+      this.trackFlashStart(selectedTarget, { method: 'esptool', cleanInstall: true })
 
       try {
         const filesToFlash: Array<{ data: string, address: number }> = []
@@ -818,18 +918,24 @@ export const useFirmwareStore = defineStore('firmware', {
             if (written === total && fileIndex > 1) {
               this.isFlashing = false
               console.log('Done flashing!')
-              this.trackDownload(selectedTarget, true)
             }
           },
         }
-        await this.startWrite(terminal, espLoader, transport, flashOptions)
+        await this.startWrite(terminal, espLoader, transport, flashOptions, { selectedTarget, cleanInstall: true })
       }
       catch (error: any) {
         this.handleError(error, terminal)
       }
     },
-    async startWrite(terminal: Terminal, espLoader: ESPLoader, transport: Transport, flashOptions: FlashOptions) {
+    async startWrite(terminal: Terminal, espLoader: ESPLoader, transport: Transport, flashOptions: FlashOptions, flashed: { selectedTarget: DeviceHardware, cleanInstall: boolean }) {
       await espLoader.writeFlash(flashOptions)
+
+      // The write is the flash, so success is recorded here: reportProgress
+      // reaches written === total once per file and can do so before writeFlash
+      // rejects, while everything below is the reset and the boot-log stream —
+      // and readSerial only returns when the port closes.
+      this.trackDownload(flashed.selectedTarget, flashed.cleanInstall)
+
 
       // Perform hard reset - toggle RTS to reset the chip
       // This matches the original working reset sequence that was used before PR #297
@@ -855,7 +961,47 @@ export const useFirmwareStore = defineStore('firmware', {
         throw new Error('Serial port is not defined')
       }
     },
-    trackDownload(selectedTarget: DeviceHardware, isCleanInstall: boolean) {
+    /**
+     * Attributes shared by every action in the flash funnel: which board, which
+     * firmware, and which event edition (if any) it was flashed at.
+     */
+    flashAttributes(selectedTarget: DeviceHardware, method: FlashMethod, isCleanInstall: boolean) {
+      return {
+        ...boardAttributes(selectedTarget),
+        ...eventAttributes(eventMode),
+        firmware_version: this.selectedFirmware?.id || '',
+        firmware_channel: this.firmwareChannel,
+        pr_number: this.selectedFirmware?.prBuild?.prNumber,
+        method,
+        clean_install: isCleanInstall,
+      }
+    },
+    /**
+     * Second joint of the funnel: the user started a flash. Emitted before the
+     * serial port picker opens, so start-vs-finish counts show how many attempts
+     * never made it to a device.
+     */
+    trackFlashStart(selectedTarget: DeviceHardware, options: { method: FlashMethod, cleanInstall?: boolean }) {
+      activeFlash = this.flashAttributes(selectedTarget, options.method, options.cleanInstall ?? false)
+      addRumAction('flash_start', activeFlash)
+    },
+    /**
+     * Final joint: the flash failed. Uses the attributes captured at
+     * flash_start so the failure is attributed to the right board/firmware.
+     */
+    trackFlashError(error: unknown) {
+      const context = {
+        ...(activeFlash ?? eventAttributes(eventMode)),
+        ...classifyFlashError(error),
+        flash_percent_done: this.flashPercentDone,
+      }
+      activeFlash = undefined
+      addRumAction('flash_error', context)
+      logTelemetry('warn', 'Firmware flash failed', { event_type: 'flash_error', ...context })
+    },
+    trackDownload(selectedTarget: DeviceHardware, isCleanInstall: boolean, method: FlashMethod = 'esptool') {
+      // This attempt is over either way — never attribute a later failure to it.
+      activeFlash = undefined
       if (selectedTarget.hwModelSlug?.length > 0) {
         // Vercel Analytics tracking
         track('Download', {
@@ -863,49 +1009,47 @@ export const useFirmwareStore = defineStore('firmware', {
           arch: selectedTarget.architecture,
           cleanInstall: isCleanInstall,
           version: this.selectedFirmware?.id || '',
+          event: String(eventAttributes(eventMode).event_slug),
           count: 1,
         })
 
         // Datadog tracking - both RUM and Logs for comprehensive coverage
-        if (import.meta.client) {
-          const flashData = {
-            firmware_version: this.selectedFirmware?.id || '',
-            pr_number: this.selectedFirmware?.prBuild?.prNumber,
-            hw_model: selectedTarget.hwModel,
-            hw_model_slug: selectedTarget.hwModelSlug,
-            platformio_target: selectedTarget.platformioTarget,
-            architecture: selectedTarget.architecture,
-            clean_install: isCleanInstall,
-            support_level: selectedTarget.supportLevel || 3,
-            has_mui: selectedTarget.hasMui || false,
-            partition_scheme: this.partitionScheme || 'default',
-            partition_table_version: this.partitionScheme === '8MB' && selectedTarget.hasMui && supportsNew8MBPartitionTable(this.firmwareVersion) ? 'new-8mb' : 'legacy',
-            timestamp: new Date().toISOString(),
-            user_agent: navigator.userAgent,
-            url: window.location.href,
-          }
-
-          // RUM Action (for user experience correlation, subject to sampling)
-          import('@datadog/browser-rum').then(({ datadogRum }) => {
-            datadogRum.addAction('firmware_flash', flashData)
-          }).catch((error) => {
-            console.warn('Datadog RUM not available for flash tracking:', error)
-          })
-
-          // Datadog Logs (for precise counting, no sampling)
-          import('@datadog/browser-logs').then(({ datadogLogs }) => {
-            datadogLogs.logger.info('Firmware flash completed', {
-              event_type: 'firmware_flash',
-              ...flashData,
-            })
-          }).catch((error) => {
-            console.warn('Datadog Logs not available for flash tracking:', error)
-          })
+        const flashData = {
+          ...this.flashAttributes(selectedTarget, method, isCleanInstall),
+          has_mui: selectedTarget.hasMui || false,
+          partition_scheme: this.partitionScheme || 'default',
+          partition_table_version: this.partitionScheme === '8MB' && selectedTarget.hasMui && supportsNew8MBPartitionTable(this.firmwareVersion) ? 'new-8mb' : 'legacy',
+          timestamp: new Date().toISOString(),
+          user_agent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
+          // Origin + path only. Query and fragment can carry anything a user was
+          // linked with, and what the flasher itself puts there (?pr=, ?event=)
+          // is already reported as pr_number / event_slug.
+          url: typeof window === 'undefined' ? '' : `${window.location.origin}${window.location.pathname}`,
         }
+
+        // Final joint of the funnel. For UF2 targets the flasher only hands the
+        // file to the browser — the drag-and-drop onto the device is not
+        // observable — so outcome_source distinguishes a confirmed write from a
+        // delivered download when computing success rates.
+        addRumAction('flash_success', {
+          ...flashData,
+          outcome_source: method === 'uf2' ? 'download' : 'device',
+        })
+
+        // Original action name, kept alongside flash_success so existing
+        // dashboards and monitors keep reporting.
+        addRumAction('firmware_flash', flashData)
+
+        // Datadog Logs (for precise counting, no sampling)
+        logTelemetry('info', 'Firmware flash completed', {
+          event_type: 'firmware_flash',
+          ...flashData,
+        })
       }
     },
     async cleanInstallEspFlashLegacy(fileName: string, otaFileName: string, littleFsFileName: string, selectedTarget: DeviceHardware) {
       const terminal = await openTerminal()
+      this.trackFlashStart(selectedTarget, { method: 'esptool', cleanInstall: true })
 
       try {
         this.port = await navigator.serial.requestPort({})
@@ -978,11 +1122,10 @@ export const useFirmwareStore = defineStore('firmware', {
             if (written === total && fileIndex > 1) {
               this.isFlashing = false
               console.log('Done flashing!')
-              this.trackDownload(selectedTarget, true)
             }
           },
         }
-        await this.startWrite(terminal, espLoader, transport, flashOptions)
+        await this.startWrite(terminal, espLoader, transport, flashOptions, { selectedTarget, cleanInstall: true })
       }
       catch (error: any) {
         this.handleError(error, terminal)
@@ -1009,7 +1152,14 @@ export const useFirmwareStore = defineStore('firmware', {
       }
       if (this.selectedFirmware?.id) {
         const baseUrl = getFirmwareBaseUrl(this.selectedFirmware.id)
-        const response = await fetch(`${baseUrl}/${fileName}`)
+        const url = `${baseUrl}/${fileName}`
+        const response = await fetch(url)
+        // Without this a 404 body ("404: Not Found") is happily flashed to the
+        // partition as a 14-byte payload — silently corrupting it instead of
+        // failing the flash.
+        if (!response.ok) {
+          throw new Error(`Could not download ${fileName} (HTTP ${response.status} from ${url})`)
+        }
         const blob = await response.blob()
         const data = await blob.arrayBuffer()
         return convertToBinaryString(new Uint8Array(data))
