@@ -35,7 +35,7 @@
       </span>
       <img
         v-if="props.device.hasMui"
-        src="/img/Meshtastic-UI-Short.svg"
+        :src="withBase('/img/Meshtastic-UI-Short.svg', baseURL)"
         class="h-6 m-1 pb-1"
         alt="Meshtastic UI"
       >
@@ -56,14 +56,14 @@
         :key="image"
         class="absolute inset-0 w-24 h-24 sm:w-32 sm:h-32"
         :style="{ left: `${index * 15}px` }"
-        :src="`/img/devices/${image}`"
+        :src="withBase(`/img/devices/${image}`, baseURL)"
         :alt="props.device.displayName"
       >
     </div>
     <img
       v-else
       class="w-24 h-24 sm:w-32 sm:h-32 m-2"
-      :src="`/img/devices/unknown.svg`"
+      :src="withBase('/img/devices/unknown.svg', baseURL)"
       :alt="props.device.displayName"
     >
     <div class="flex justify-start w-full">
@@ -96,6 +96,7 @@ import { requiresHamLicense } from '~/utils/deviceBadges'
 import { isUnsupportedDevice } from '~/utils/unsupportedDevices'
 import { useFirmwareStore } from '../stores/firmwareStore'
 import { computed } from 'vue'
+import { withBase } from 'ufo'
 
 import {
   BadgeCheck,
@@ -104,6 +105,7 @@ import {
 } from 'lucide-vue-next'
 
 const firmwareStore = useFirmwareStore()
+const baseURL = useRuntimeConfig().app.baseURL
 
 const props = defineProps({
   device: {

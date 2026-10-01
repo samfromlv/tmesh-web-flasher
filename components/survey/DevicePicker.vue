@@ -93,6 +93,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { withBase } from 'ufo'
 
 import { DEVICE_OPTIONS, DEVICE_VENDORS, type DeviceOption } from './devices.generated'
 import { useThemeStore } from '../../stores/themeStore'
@@ -109,6 +110,7 @@ const emit = defineEmits<{
 const OTHER_CODE = 'other'
 
 const themeStore = useThemeStore()
+const baseURL = useRuntimeConfig().app.baseURL
 const query = ref('')
 const vendor = ref<string | null>(null)
 
@@ -135,10 +137,10 @@ const filtered = computed(() => {
 // Some boards ship no artwork; fall back to the same placeholder the
 // flasher uses, which has a light-mode variant.
 function imageFor(device: DeviceOption): string {
-  if (device.image) return `/img/devices/${device.image}`
-  return themeStore.isDark
+  if (device.image) return withBase(`/img/devices/${device.image}`, baseURL)
+  return withBase(themeStore.isDark
     ? '/img/devices/unknown-new.svg'
-    : '/img/devices/unknown-new-light.svg'
+    : '/img/devices/unknown-new-light.svg', baseURL)
 }
 
 const selected = computed(() => props.selected)

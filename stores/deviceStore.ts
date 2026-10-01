@@ -16,6 +16,7 @@ import { createUrl } from "./store";
 import { useFirmwareStore } from "./firmwareStore";
 import { useSerialMonitorStore } from "./serialMonitorStore";
 import { useToastStore } from "./toastStore";
+import { withBase } from 'ufo'
 
 // Ensure Web Serial API types are available and extend them safely
 declare global {
@@ -167,10 +168,11 @@ export const useDeviceStore = defineStore('device', {
      * isSoftDevice7point3 for what happens when it doesn't.
      */
     eraseUf2File(): string {
+      const baseURL = useRuntimeConfig().app.baseURL
       if (!this.isSelectedNrf) {
-        return '/uf2/pico_erase.uf2'
+        return withBase('/uf2/pico_erase.uf2', baseURL)
       }
-      return this.isSoftDevice7point3 ? '/uf2/nrf_erase_sd7_3.uf2' : '/uf2/nrf_erase2.uf2'
+      return withBase(this.isSoftDevice7point3 ? '/uf2/nrf_erase_sd7_3.uf2' : '/uf2/nrf_erase2.uf2', baseURL)
     },
     enterDfuVersion(): string {
       if (this.isSelectedNrf) {
@@ -191,7 +193,7 @@ export const useDeviceStore = defineStore('device', {
     async fetchList() {
       // Fallback to offline list from the JSON file
       try {
-        const response = await fetch("/data/hardware-list.json");
+        const response = await fetch(withBase("/data/hardware-list.json", useRuntimeConfig().app.baseURL));
         if (response.ok) {
           const offlineHardwareList = await response.json();
           this.setTargetsList(offlineHardwareList);

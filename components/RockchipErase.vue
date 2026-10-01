@@ -477,6 +477,7 @@
 
 <script lang="ts" setup>
 import { computed, nextTick, ref, watch } from 'vue'
+import { withBase } from 'ufo'
 import {
   FolderDown,
   HardDrive,
@@ -528,13 +529,14 @@ const confirmed = ref(false)
 const flashConfirmed = ref(false)
 const imageFile = ref<File | null>(null)
 const loaderFile = ref<File | null>(null)
-const bundledLoader = ref('/rockchip/rk3506_spl_loader_v1.06.112.bin')
+const baseURL = useRuntimeConfig().app.baseURL
 const bundledOptions = [
-  { value: '/rockchip/rk3506_spl_loader_v1.06.112.bin', label: 'RK3506G2 official rkbin v1.06.112 (Lyra, Lyra W, Lyra Plus)' },
-  { value: '/rockchip/rk3506b_spl_loader_v1.06.112.bin', label: 'RK3506B official rkbin v1.06.112 (Lyra Zero W, Lyra Ultra)' },
-  { value: '/rockchip/rk3506_spl_loader.bin', label: 'RK3506G2 minimal (bundled fallback)' },
-  { value: '/rockchip/rk3506b_spl_loader.bin', label: 'RK3506B minimal (bundled fallback)' },
+  { value: withBase('/rockchip/rk3506_spl_loader_v1.06.112.bin', baseURL), label: 'RK3506G2 official rkbin v1.06.112 (Lyra, Lyra W, Lyra Plus)' },
+  { value: withBase('/rockchip/rk3506b_spl_loader_v1.06.112.bin', baseURL), label: 'RK3506B official rkbin v1.06.112 (Lyra Zero W, Lyra Ultra)' },
+  { value: withBase('/rockchip/rk3506_spl_loader.bin', baseURL), label: 'RK3506G2 minimal (bundled fallback)' },
+  { value: withBase('/rockchip/rk3506b_spl_loader.bin', baseURL), label: 'RK3506B minimal (bundled fallback)' },
 ]
+const bundledLoader = ref(bundledOptions[0].value)
 const logEl = ref<HTMLElement | null>(null)
 
 const storageOptions = computed(() => {

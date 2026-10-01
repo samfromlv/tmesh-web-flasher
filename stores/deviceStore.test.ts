@@ -27,6 +27,7 @@ const SD611_ERASE = '/uf2/nrf_erase2.uf2'
 describe('deviceStore factory-erase UF2 selection', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vi.stubGlobal('useRuntimeConfig', () => ({ app: { baseURL: '/' } }))
   })
 
   it('serves the SoftDevice 7.3 erase file to the Seeed MeshTracker X1', () => {
@@ -82,6 +83,17 @@ describe('deviceStore factory-erase UF2 selection', () => {
     const store = useDeviceStore()
     store.selectedTarget = makeTarget({ hwModelSlug: 'RPI_PICO', architecture: 'rp2040', tags: ['Raspberry Pi'] })
     expect(store.eraseUf2File).toBe('/uf2/pico_erase.uf2')
+  })
+
+  it.each([
+    ['nrf52840', 'SEEED_SOLAR_NODE', ['Seeed'], SD73_ERASE],
+    ['nrf52840', 'RAK4631', ['RAK'], SD611_ERASE],
+    ['rp2040', 'RPI_PICO', ['Raspberry Pi'], '/uf2/pico_erase.uf2'],
+  ])('prefixes the %s %s erase file under /flash/', (architecture, slug, tags, path) => {
+    vi.stubGlobal('useRuntimeConfig', () => ({ app: { baseURL: '/flash/' } }))
+    const store = useDeviceStore()
+    store.selectedTarget = makeTarget({ architecture, hwModelSlug: slug, tags })
+    expect(store.eraseUf2File).toBe(`/flash${path}`)
   })
 
   it('is not SoftDevice 7.3 when nothing is selected', () => {

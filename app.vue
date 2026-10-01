@@ -268,6 +268,7 @@ import {
   initTooltips } from 'flowbite'
 import { useI18n } from 'vue-i18n'
 import { onMounted, onUnmounted } from 'vue'
+import { withBase } from 'ufo'
 
 import {
   Zap,
@@ -406,9 +407,9 @@ const monitorSerial = async () => {
 
 const selectedDeviceImage = computed(() => {
   if (deviceStore.selectedTarget?.images?.length) {
-    return `/img/devices/${deviceStore.selectedTarget.images[0]}`
+    return withBase(`/img/devices/${deviceStore.selectedTarget.images[0]}`, config.app.baseURL)
   }
-  return themeStore.isDark ? '/img/devices/unknown-new.svg' : '/img/devices/unknown-new-light.svg'
+  return withBase(themeStore.isDark ? '/img/devices/unknown-new.svg' : '/img/devices/unknown-new-light.svg', config.app.baseURL)
 })
 
 const connectionButtonLabel = computed(() => {
