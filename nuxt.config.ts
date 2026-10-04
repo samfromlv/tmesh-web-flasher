@@ -221,7 +221,7 @@ export default defineNuxtConfig({
         file: 'zh-Hant.json',
       },
     ],
-    defaultLocale: 'en',
+    defaultLocale: process.env.DEFAULT_LOCALE || 'en',
     lazy: true,
     langDir: 'locales/',
     strategy: 'no_prefix',
